@@ -22,7 +22,7 @@ This keeps OpenCLIP's core training code unchanged and focuses on reproducible c
 ## Assumptions
 - JSONL rows include `image_path` and `description` (verified).
 - `image_path` values are directly accessible (no extra prefix required).
-- Relative `image_path` values are resolved relative to the current working directory when training.
+- Relative paths in config (e.g., `train_data`, `val_data`) are resolved relative to the config file directory.
 - Training uses model `ViT-L-14` and pretrained weights `openai` by default.
 
 ## Data Mapping
@@ -59,14 +59,12 @@ Responsibilities:
   - `--img-key` (default `image_path`)
   - `--caption-key` (default `description`)
   - `--sep` (default `\t`)
-  - `--skip-invalid` (store_true; default false)
-  - `--fail-on-error` (store_true; default false)
+  - `--skip-invalid` (store_true; default true)
+  - `--strict` (store_true; default false)
 
 Error handling:
-- If a row is invalid JSON or missing required fields:
-  - Default: hard fail (exit non-zero).
-  - If `--skip-invalid` is set, skip and count it.
-  - If `--fail-on-error` is set, abort on the first invalid row (overrides `--skip-invalid`).
+- Default: skip invalid rows and count them (`--skip-invalid` behavior).
+- If `--strict` is set, abort on the first invalid row and do not write partial output.
 - If `--output` points to a non-existent directory, create parent directories.
 - Print a summary of total rows, written rows, and skipped rows.
 
@@ -79,7 +77,7 @@ Responsibilities:
 - Run training via `subprocess` and pass through exit codes.
 
 YAML dependency:
-- Use PyYAML if available.
+- Treat PyYAML as optional; document an install command in `tarin_hicervix.md`.
 - If PyYAML is not installed and a `.yaml/.yml` config is provided, print a clear error and exit non-zero.
 - JSON configs always work with the standard library.
 
@@ -90,7 +88,8 @@ Config format:
   - Example: `csv_separator` -> `--csv-separator`
 - Boolean values:
   - `true` -> include `--flag`
-  - `false` -> omit `--flag`
+  - `false` -> omit `--flag` (no `--no-*` mapping).
+- List/dict values are not supported and cause a clear error (YAGNI).
 
 Minimum required config keys:
 - `train_data`
@@ -117,7 +116,8 @@ Behavior:
 - Print the final command before execution for reproducibility.
 - Validate that required fields exist.
 - Support `--dry-run` to print the command and exit 0 without executing.
-- Unknown config keys: pass through as CLI flags (underscore->dash) to preserve forward compatibility.
+- Unknown config keys: pass through as CLI flags (underscore->dash) if scalar.
+- Resolve relative paths against the config file directory to avoid cwd ambiguity.
 - Use `sys.executable -m open_clip_train.main` to ensure the active environment is used.
 
 ### 3) User Documentation
@@ -129,6 +129,7 @@ Contents:
 - Config example (YAML and JSON snippets).
 - Training invocation using `scripts/train_hicervix.py --config ...`.
 - Notes on adjusting parameters (batch size, epochs, LR, etc.).
+- PyYAML install note (optional): `pip install pyyaml`.
 
 ## Interfaces & Integration Points
 - Conversion script produces TSV files consumed by OpenCLIP CSV dataset loader.
@@ -142,5 +143,5 @@ Contents:
 None.
 
 ## Risks
-- If JSONL contains unexpected nulls or missing fields, rows are skipped or cause a hard fail depending on flags. This is acceptable and reported.
+- If JSONL contains unexpected nulls or missing fields, rows are skipped by default. `--strict` enables fail-fast behavior.
 - File paths must be correct; no additional prefix is applied.
