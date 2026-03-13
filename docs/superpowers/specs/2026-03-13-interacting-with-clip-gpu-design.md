@@ -5,8 +5,8 @@ Update `tutorials/Interacting_with_CLIP.ipynb` to require a CUDA GPU and run all
 
 ## Goals
 - Require CUDA availability and fail fast with a clear error if not present.
-- Run model inference and tensor computations on `cuda:0`.
-- Keep full precision (no autocast or mixed precision).
+- Run model inference and tensor computations on `cuda:0` (CPU only for preprocessing and plotting).
+- Keep full precision (no autocast or mixed precision) by explicitly forcing `fp32` on the model.
 - Preserve notebook flow and outputs with minimal edits.
 
 ## Non-Goals
@@ -26,6 +26,7 @@ Update `tutorials/Interacting_with_CLIP.ipynb` to require a CUDA GPU and run all
   - Define `device = torch.device("cuda:0")`.
 - Keep the existing `CUDA_VISIBLE_DEVICES="0"` cell unchanged.
 - Move the model to GPU immediately after creation, before `model.eval()`.
+- Force full precision on GPU by calling `model = model.to(device).float()` (or `model.to(device); model.float()`).
 
 ### Tensor Placement
 - Ensure all model inputs are on GPU:
@@ -34,13 +35,13 @@ Update `tutorials/Interacting_with_CLIP.ipynb` to require a CUDA GPU and run all
 - All `encode_image` and `encode_text` calls run on GPU.
 
 ### CPU Interop for NumPy/Plotting
-- Move tensors to CPU before NumPy and matplotlib usage:
-  - `similarity` computed from `.cpu().numpy()` inputs.
+- Keep similarity computation on GPU using torch ops, then move results to CPU for NumPy/matplotlib:
+  - `similarity = (text_features @ image_features.T).float().cpu().numpy()`.
   - `top_probs`, `top_labels` moved to CPU before plotting and label indexing.
 
 ### CIFAR100 Flow
-- Keep dataset loading on CPU (unchanged).
-- Compute text features on GPU and move to CPU as needed for plotting.
+- Keep dataset loading and preprocessing on CPU (unchanged).
+- Compute text features on GPU, compute `text_probs` on GPU, then move results to CPU for plotting.
 
 ## Error Handling
 - If CUDA is unavailable, raise a `RuntimeError` with guidance to install CUDA/PyTorch GPU support.
