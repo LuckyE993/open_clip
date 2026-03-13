@@ -59,13 +59,22 @@ Responsibilities:
   - `--img-key` (default `image_path`)
   - `--caption-key` (default `description`)
   - `--sep` (default `\t`)
-  - `--skip-invalid` (store_true; default true)
+  - `--skip-invalid` (store_true; default false)
   - `--strict` (store_true; default false)
+  - `--overwrite` (store_true; default false)
+
+Invalid row definition:
+- Missing required keys (`img-key` or `caption-key`).
+- Value is null/empty after string conversion.
 
 Error handling:
-- Default: skip invalid rows and count them (`--skip-invalid` behavior).
-- If `--strict` is set, abort on the first invalid row and do not write partial output.
+- Default: hard fail on the first invalid row (exit non-zero).
+- If `--skip-invalid` is set, skip invalid rows and count them.
+- If `--strict` is set, abort on the first invalid row and do not write partial output (write to temp file then rename).
 - If `--output` points to a non-existent directory, create parent directories.
+- If `--output` already exists:
+  - Default: fail with a clear error.
+  - If `--overwrite` is set, replace the file.
 - Print a summary of total rows, written rows, and skipped rows.
 
 ### 2) Config-Driven Training Script
@@ -75,6 +84,10 @@ Responsibilities:
 - Load a YAML/JSON config file.
 - Convert config keys into CLI flags for `open_clip_train.main`.
 - Run training via `subprocess` and pass through exit codes.
+
+Script CLI:
+- `--config` (required) path to YAML/JSON config.
+- `--dry-run` (optional) print the command and exit 0 without executing.
 
 YAML dependency:
 - Treat PyYAML as optional; document an install command in `tarin_hicervix.md`.
@@ -143,5 +156,5 @@ Contents:
 None.
 
 ## Risks
-- If JSONL contains unexpected nulls or missing fields, rows are skipped by default. `--strict` enables fail-fast behavior.
+- If JSONL contains unexpected nulls or missing fields, rows are skipped by default when `--skip-invalid` is set. `--strict` enables fail-fast behavior.
 - File paths must be correct; no additional prefix is applied.
