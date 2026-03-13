@@ -22,7 +22,7 @@ This keeps OpenCLIP's core training code unchanged and focuses on reproducible c
 ## Assumptions
 - JSONL rows include `image_path` and `description` (verified).
 - `image_path` values are directly accessible (no extra prefix required).
-- Relative paths in config (e.g., `train_data`, `val_data`) are resolved relative to the config file directory.
+- Relative paths in config are resolved relative to the config file directory for these keys: `train_data`, `val_data`, `logs`, `resume`, `checkpoint_path`.
 - Training uses model `ViT-L-14` and pretrained weights `openai` by default.
 
 ## Data Mapping
@@ -64,18 +64,23 @@ Responsibilities:
   - `--overwrite` (store_true; default false)
 
 Invalid row definition:
+- JSON parse error.
 - Missing required keys (`img-key` or `caption-key`).
 - Value is null/empty after string conversion.
 
 Error handling:
-- Default: hard fail on the first invalid row (exit non-zero).
-- If `--skip-invalid` is set, skip invalid rows and count them.
+- `--skip-invalid` and `--strict` are mutually exclusive; using both is a CLI error.
+- Default: hard fail on the first invalid row and do not write partial output (write to temp file then rename).
+- If `--skip-invalid` is set, skip invalid rows and count them; JSON parse errors are treated as invalid rows.
 - If `--strict` is set, abort on the first invalid row and do not write partial output (write to temp file then rename).
 - If `--output` points to a non-existent directory, create parent directories.
 - If `--output` already exists:
   - Default: fail with a clear error.
   - If `--overwrite` is set, replace the file.
 - Print a summary of total rows, written rows, and skipped rows.
+
+Temp file strategy:
+- Write to `output_path + ".tmp"` and rename on success to avoid partial outputs.
 
 ### 2) Config-Driven Training Script
 **File:** `scripts/train_hicervix.py`
@@ -118,7 +123,7 @@ Defaulted keys (optional in config):
 
 Common optional keys:
 - `batch_size`, `epochs`, `lr`, `wd`, `precision`, `workers`, `seed`
-- `logs`, `name`, `save_frequency`, `save_most_recent`
+- `logs`, `name`, `save_frequency`, `save_most_recent`, `resume`, `checkpoint_path`
 
 Separator handling:
 - In config, `csv_separator` should be the literal tab character. The documentation will show both:
@@ -130,7 +135,7 @@ Behavior:
 - Validate that required fields exist.
 - Support `--dry-run` to print the command and exit 0 without executing.
 - Unknown config keys: pass through as CLI flags (underscore->dash) if scalar.
-- Resolve relative paths against the config file directory to avoid cwd ambiguity.
+- Resolve relative paths against the config file directory for keys in Assumptions.
 - Use `sys.executable -m open_clip_train.main` to ensure the active environment is used.
 
 ### 3) User Documentation
@@ -143,6 +148,13 @@ Contents:
 - Training invocation using `scripts/train_hicervix.py --config ...`.
 - Notes on adjusting parameters (batch size, epochs, LR, etc.).
 - PyYAML install note (optional): `pip install pyyaml`.
+
+Minimal config example (YAML):
+```
+train_data: outputs/hicervix_5cls_train.tsv
+val_data: outputs/hicervix_5cls_val.tsv
+csv_separator: "\t"
+```
 
 ## Interfaces & Integration Points
 - Conversion script produces TSV files consumed by OpenCLIP CSV dataset loader.
