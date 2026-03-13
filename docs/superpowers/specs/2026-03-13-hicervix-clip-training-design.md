@@ -35,6 +35,8 @@ Output format:
 - Default output path: if `--output` not provided, replace the input file extension with `.tsv` in the same directory.
   - Example: `outputs/hicervix_5cls_train_captions.jsonl` -> `outputs/hicervix_5cls_train_captions.tsv`
   - The doc will also show how to explicitly write to `outputs/hicervix_5cls_{train,val}.tsv`.
+- Output encoding: UTF-8, line endings `\n`.
+- Captions are sanitized by replacing embedded tabs/newlines with a single space to keep TSV row integrity.
 
 OpenCLIP training flags (CSV dataset):
 - `--dataset-type csv`
@@ -57,14 +59,14 @@ Responsibilities:
   - `--img-key` (default `image_path`)
   - `--caption-key` (default `description`)
   - `--sep` (default `\t`)
-  - `--skip-invalid` (default true)
-  - `--fail-on-error` (default false)
+  - `--skip-invalid` (store_true; default false)
+  - `--fail-on-error` (store_true; default false)
 
 Error handling:
 - If a row is invalid JSON or missing required fields:
-  - Default: skip and count it (`--skip-invalid`).
+  - Default: hard fail (exit non-zero).
+  - If `--skip-invalid` is set, skip and count it.
   - If `--fail-on-error` is set, abort on the first invalid row (overrides `--skip-invalid`).
-  - If `--skip-invalid=false` (and `--fail-on-error` is not set), abort on the first invalid row.
 - If `--output` points to a non-existent directory, create parent directories.
 - Print a summary of total rows, written rows, and skipped rows.
 
@@ -97,11 +99,14 @@ Minimum required config keys:
 Defaulted keys (optional in config):
 - `model` (default `ViT-L-14`)
 - `pretrained` (default `openai`)
+- `dataset_type` (default `csv`)
+- `csv_separator` (default tab)
+- `csv_img_key` (default `filepath`)
+- `csv_caption_key` (default `title`)
 
 Common optional keys:
 - `batch_size`, `epochs`, `lr`, `wd`, `precision`, `workers`, `seed`
 - `logs`, `name`, `save_frequency`, `save_most_recent`
-- CSV-related flags (`dataset_type`, `csv_separator`, `csv_img_key`, `csv_caption_key`)
 
 Separator handling:
 - In config, `csv_separator` should be the literal tab character. The documentation will show both:
@@ -112,6 +117,8 @@ Behavior:
 - Print the final command before execution for reproducibility.
 - Validate that required fields exist.
 - Support `--dry-run` to print the command and exit 0 without executing.
+- Unknown config keys: pass through as CLI flags (underscore->dash) to preserve forward compatibility.
+- Use `sys.executable -m open_clip_train.main` to ensure the active environment is used.
 
 ### 3) User Documentation
 **File:** `tarin_hicervix.md` (repo root)
