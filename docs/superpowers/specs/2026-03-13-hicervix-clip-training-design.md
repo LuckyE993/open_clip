@@ -22,6 +22,7 @@ This keeps OpenCLIP's core training code unchanged and focuses on reproducible c
 ## Assumptions
 - JSONL rows include `image_path` and `description` (verified).
 - `image_path` values are directly accessible (no extra prefix required).
+- Relative `image_path` values are resolved relative to the current working directory when training.
 - Training uses model `ViT-L-14` and pretrained weights `openai` by default.
 
 ## Data Mapping
@@ -44,7 +45,7 @@ OpenCLIP training flags (CSV dataset):
 ## Components
 
 ### 1) Dataset Conversion Script
-**File:** `scripts/jsonl_to_csv_clip.py`
+**File:** `scripts/jsonl_to_tsv_clip.py` (name reflects TSV output)
 
 Responsibilities:
 - Read input JSONL file line-by-line.
@@ -64,6 +65,7 @@ Error handling:
   - Default: skip and count it (`--skip-invalid`).
   - If `--fail-on-error` is set, abort on the first invalid row (overrides `--skip-invalid`).
   - If `--skip-invalid=false` (and `--fail-on-error` is not set), abort on the first invalid row.
+- If `--output` points to a non-existent directory, create parent directories.
 - Print a summary of total rows, written rows, and skipped rows.
 
 ### 2) Config-Driven Training Script
@@ -74,6 +76,11 @@ Responsibilities:
 - Convert config keys into CLI flags for `open_clip_train.main`.
 - Run training via `subprocess` and pass through exit codes.
 
+YAML dependency:
+- Use PyYAML if available.
+- If PyYAML is not installed and a `.yaml/.yml` config is provided, print a clear error and exit non-zero.
+- JSON configs always work with the standard library.
+
 Config format:
 - Flat key/value map only (no nested sections).
 - Keys may be written with underscores or dashes; underscores are converted to dashes.
@@ -82,8 +89,6 @@ Config format:
 - Boolean values:
   - `true` -> include `--flag`
   - `false` -> omit `--flag`
-- List values:
-  - Join by comma (e.g., `layers: [1,2]` -> `--layers 1,2`) if needed in future; not required for current usage.
 
 Minimum required config keys:
 - `train_data`
@@ -98,13 +103,18 @@ Common optional keys:
 - `logs`, `name`, `save_frequency`, `save_most_recent`
 - CSV-related flags (`dataset_type`, `csv_separator`, `csv_img_key`, `csv_caption_key`)
 
+Separator handling:
+- In config, `csv_separator` should be the literal tab character. The documentation will show both:
+  - YAML: `csv_separator: "\t"` (parsed as a tab)
+  - JSON: `"csv_separator": "\t"` (escaped to a tab)
+
 Behavior:
 - Print the final command before execution for reproducibility.
 - Validate that required fields exist.
 - Support `--dry-run` to print the command and exit 0 without executing.
 
 ### 3) User Documentation
-**File:** `tarin_hicervix.md`
+**File:** `tarin_hicervix.md` (repo root)
 
 Contents:
 - Conda env activation (`re0312`).
