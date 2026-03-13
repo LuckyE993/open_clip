@@ -20,6 +20,11 @@ Update `tutorials/Interacting_with_CLIP.ipynb` to require a CUDA GPU and run all
 
 ## Proposed Design
 
+### Exact Edit Locations
+- Insert device setup cell immediately after the first `import torch` cell and before any model creation.
+- Move the model to GPU (and force fp32) directly after `open_clip.create_model_and_transforms(...)` and before `model.eval()`.
+- Move `image_input` and `text_tokens` to GPU immediately after creation.
+
 ### Device Enforcement
 - Add a device setup cell after `import torch`:
   - Assert `torch.cuda.is_available()` and raise a `RuntimeError` with a clear message if false.
@@ -37,7 +42,7 @@ Update `tutorials/Interacting_with_CLIP.ipynb` to require a CUDA GPU and run all
 ### CPU Interop for NumPy/Plotting
 - Keep similarity computation on GPU using torch ops, then move results to CPU for NumPy/matplotlib:
   - `similarity = (text_features @ image_features.T).float().cpu().numpy()`.
-  - `top_probs`, `top_labels` moved to CPU before plotting and label indexing.
+  - `top_probs`, `top_labels` computed on GPU, then moved to CPU before plotting and label indexing.
 
 ### CIFAR100 Flow
 - Keep dataset loading and preprocessing on CPU (unchanged).
