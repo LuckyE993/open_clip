@@ -186,6 +186,30 @@ def parse_args(args):
         help="Always save the most recent model trained to epoch_latest.pt.",
     )
     parser.add_argument(
+        "--save-best-model",
+        action="store_true",
+        default=False,
+        help="Save the best checkpoint based on a validation metric.",
+    )
+    parser.add_argument(
+        "--best-metric",
+        type=str,
+        default="clip_val_loss",
+        help="Metric name used to select the best model.",
+    )
+    parser.add_argument(
+        "--best-mode",
+        choices=["min", "max"],
+        default="min",
+        help="Whether lower (min) or higher (max) metric is better.",
+    )
+    parser.add_argument(
+        "--best-model-name",
+        type=str,
+        default="epoch_best.pt",
+        help="Filename for the best checkpoint.",
+    )
+    parser.add_argument(
         "--zeroshot-frequency", type=int, default=2, help="How often to run zero shot."
     )
     parser.add_argument(

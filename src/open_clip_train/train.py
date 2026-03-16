@@ -380,6 +380,16 @@ def get_clip_metrics(image_features, text_features, logit_scale):
     return metrics
 
 
+def is_better_metric(value, best_value, mode):
+    if best_value is None:
+        return True
+    if mode == "min":
+        return value < best_value
+    if mode == "max":
+        return value > best_value
+    raise ValueError(f"Unsupported best-mode: {mode}")
+
+
 def maybe_compute_generative_loss(model_out):
     if "logits" in model_out and "labels" in model_out:
         token_logits = model_out["logits"]
