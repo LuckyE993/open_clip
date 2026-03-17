@@ -1,5 +1,24 @@
 import argparse
 import ast
+from pathlib import Path
+
+
+def _load_yaml_config(path: str) -> dict:
+    try:
+        import yaml
+    except Exception as exc:  # pragma: no cover - optional dependency
+        raise SystemExit("Missing dependency: pyyaml (required for --config).") from exc
+
+    cfg_path = Path(path)
+    if not cfg_path.exists():
+        raise SystemExit(f"--config not found: {cfg_path}")
+
+    data = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
+    if data is None:
+        return {}
+    if not isinstance(data, dict):
+        raise SystemExit("Config root must be a mapping of arg_name: value")
+    return data
 
 
 def get_default_params(model_name):
@@ -24,7 +43,17 @@ class ParseKwargs(argparse.Action):
 
 
 def parse_args(args):
-    parser = argparse.ArgumentParser()
+    # lightweight pre-parse to load YAML config (if provided)
+    config_parser = argparse.ArgumentParser(add_help=False)
+    config_parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help="Path to a YAML config file with default argument values.",
+    )
+    config_args, _ = config_parser.parse_known_args(args)
+
+    parser = argparse.ArgumentParser(parents=[config_parser])
     parser.add_argument(
         "--train-data",
         type=str,
@@ -188,7 +217,7 @@ def parse_args(args):
     parser.add_argument(
         "--save-best-model",
         action="store_true",
-        default=False,
+        default=True,
         help="Save the best checkpoint based on a validation metric.",
     )
     parser.add_argument(
@@ -503,6 +532,14 @@ def parse_args(args):
         type=str,
         help='A string to specify a specific distributed loss implementation.'
     )
+
+    if config_args.config:
+        cfg = _load_yaml_config(config_args.config)
+        valid_keys = {action.dest for action in parser._actions}
+        unknown = sorted([k for k in cfg.keys() if k not in valid_keys])
+        if unknown:
+            raise SystemExit(f"Unknown config keys: {', '.join(unknown)}")
+        parser.set_defaults(**cfg)
 
     args = parser.parse_args(args)
 
