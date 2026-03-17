@@ -154,6 +154,29 @@ class ClipLoss(nn.Module):
 
         return {"contrastive_loss": total_loss} if output_dict else total_loss
 
+# 使用带温度系数的InfoNCE损失函数，2026年3月17日
+class InfoNCELoss(ClipLoss):
+    """One-way (image->text) InfoNCE loss with temperature scaling."""
+
+    def forward(
+            self,
+            image_features,
+            text_features,
+            logit_scale,
+            logit_bias=None,
+            output_dict=False,
+    ):
+        device = image_features.device
+        logits_per_image, _ = self.get_logits(
+            image_features,
+            text_features,
+            logit_scale,
+            logit_bias=logit_bias,
+        )
+        labels = self.get_ground_truth(device, logits_per_image.shape[0])
+        total_loss = F.cross_entropy(logits_per_image, labels)
+        return {"contrastive_loss": total_loss} if output_dict else total_loss
+
 
 class CoCaLoss(ClipLoss):
     def __init__(
