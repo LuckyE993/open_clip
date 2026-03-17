@@ -5,10 +5,13 @@ Usage:
   python scripts/jsonl_to_tsv_clip.py --input outputs/hicervix_5cls_train_captions.jsonl
   python scripts/jsonl_to_tsv_clip.py --input outputs/hicervix_5cls_val_captions.jsonl
   python scripts/jsonl_to_tsv_clip.py --input INPUT.jsonl --output OUTPUT.tsv --skip-invalid
+  python scripts/jsonl_to_tsv_clip.py --input TRAIN.jsonl --label-from-csv outputs/hicervix_5cls_train.csv
+  python scripts/jsonl_to_tsv_clip.py --input VAL.jsonl --label-from-csv outputs/hicervix_5cls_val.csv
 
 Expected JSONL fields (defaults):
 - image_path -> filepath
 - description -> title
+- target_class -> label (or fallback via --label-from-csv)
 """
 
 from __future__ import annotations
@@ -18,7 +21,9 @@ import json
 import os
 from pathlib import Path
 import sys
-from typing import Any, Tuple
+from typing import Any, Dict, Tuple
+
+import pandas as pd
 
 
 def _parse_args() -> argparse.Namespace:
@@ -40,6 +45,26 @@ def _parse_args() -> argparse.Namespace:
         "--caption-key",
         default="description",
         help="JSON key for caption text (default: description)",
+    )
+    parser.add_argument(
+        "--label-key",
+        default="target_class",
+        help="JSON key for label (default: target_class)",
+    )
+    parser.add_argument(
+        "--label-from-csv",
+        default=None,
+        help="Optional CSV file to lookup labels when JSONL label is missing.",
+    )
+    parser.add_argument(
+        "--label-from-csv-key",
+        default="image_name",
+        help="CSV key used to match JSONL rows (default: image_name).",
+    )
+    parser.add_argument(
+        "--label-from-csv-label-key",
+        default="target_class",
+        help="CSV key containing label (default: target_class).",
     )
     parser.add_argument(
         "--sep",
@@ -79,22 +104,42 @@ def _derive_output_path(input_path: Path) -> Path:
 def _validate_flags(args: argparse.Namespace) -> None:
     if args.skip_invalid and args.strict:
         raise SystemExit("--skip-invalid and --strict are mutually exclusive")
+    if args.label_from_csv and not Path(args.label_from_csv).exists():
+        raise SystemExit(f"--label-from-csv not found: {args.label_from_csv}")
 
 
 def _extract_row(
-    obj: dict, img_key: str, caption_key: str
-) -> Tuple[str, str]:
+    obj: dict,
+    img_key: str,
+    caption_key: str,
+    label_key: str,
+    label_map: Dict[str, str] | None,
+    label_map_key: str | None,
+) -> Tuple[str, str, str]:
     if img_key not in obj or caption_key not in obj:
         raise KeyError("Missing required keys")
     img_val = obj.get(img_key)
     cap_val = obj.get(caption_key)
+    label_val = obj.get(label_key)
     if img_val is None or cap_val is None:
         raise ValueError("Null value for required keys")
     img_text = _sanitize_field(img_val).strip()
     cap_text = _sanitize_field(cap_val).strip()
+    label_text = _sanitize_field(label_val).strip() if label_val is not None else ""
     if not img_text or not cap_text:
         raise ValueError("Empty value for required keys")
-    return img_text, cap_text
+    if not label_text and label_map is not None and label_map_key:
+        if label_map_key not in obj:
+            raise KeyError(f"Missing label map key: {label_map_key}")
+        map_key = _sanitize_field(obj.get(label_map_key)).strip()
+        if not map_key:
+            raise ValueError("Empty value for label map key")
+        if map_key not in label_map:
+            raise KeyError(f"Label map missing key: {map_key}")
+        label_text = _sanitize_field(label_map[map_key]).strip()
+    if not label_text:
+        raise ValueError("Empty value for label")
+    return img_text, cap_text, label_text
 
 
 def main() -> int:
@@ -121,12 +166,27 @@ def main() -> int:
     total = 0
     written = 0
     skipped = 0
+    label_map = None
+
+    if args.label_from_csv:
+        df = pd.read_csv(args.label_from_csv)
+        if args.label_from_csv_key not in df.columns:
+            raise SystemExit(
+                f"--label-from-csv-key '{args.label_from_csv_key}' not in {args.label_from_csv}"
+            )
+        if args.label_from_csv_label_key not in df.columns:
+            raise SystemExit(
+                f"--label-from-csv-label-key '{args.label_from_csv_label_key}' not in {args.label_from_csv}"
+            )
+        label_map = dict(
+            zip(df[args.label_from_csv_key].astype(str), df[args.label_from_csv_label_key].astype(str))
+        )
 
     try:
         with input_path.open("r", encoding="utf-8") as src, tmp_path.open(
             "w", encoding="utf-8", newline="\n"
         ) as dst:
-            header = f"filepath{args.sep}title\n"
+            header = f"filepath{args.sep}title{args.sep}label\n"
             dst.write(header)
 
             for line_no, line in enumerate(src, start=1):
@@ -135,10 +195,15 @@ def main() -> int:
                 total += 1
                 try:
                     obj = json.loads(line)
-                    img_text, cap_text = _extract_row(
-                        obj, args.img_key, args.caption_key
+                    img_text, cap_text, label_text = _extract_row(
+                        obj,
+                        args.img_key,
+                        args.caption_key,
+                        args.label_key,
+                        label_map,
+                        args.label_from_csv_key if label_map is not None else None,
                     )
-                    dst.write(f"{img_text}{args.sep}{cap_text}\n")
+                    dst.write(f"{img_text}{args.sep}{cap_text}{args.sep}{label_text}\n")
                     written += 1
                 except Exception as exc:  # noqa: BLE001 - provide a clear message
                     if args.skip_invalid:

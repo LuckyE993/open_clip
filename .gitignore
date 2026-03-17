@@ -157,3 +157,8 @@ core.*
 
 # Git worktrees
 .worktrees/
+
+
+skills
+trainbash.md
+outputs

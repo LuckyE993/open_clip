@@ -1,0 +1,46 @@
+project_name: tbs_rag_attributes
+
+data:
+  pdf_path: docs/TBS.pdf
+  parsed_pages_path: outputs/tbs_rag/parsed_pages.jsonl
+  chunks_path: outputs/tbs_rag/chunks.jsonl
+  faiss_index_path: outputs/tbs_rag/faiss.index
+  chunk_metadata_path: outputs/tbs_rag/chunk_metadata.json
+  retrieval_results_path: outputs/tbs_rag/retrieval_results.json
+  attribute_sets_raw_path: outputs/tbs_rag/attribute_sets_raw.json
+  attribute_sets_path: outputs/tbs_rag/attribute_sets.json
+  run_config_path: outputs/tbs_rag/run_config.yaml
+  run_log_path: outputs/tbs_rag/run_log.txt
+
+chunking:
+  chunk_size: 1000
+  chunk_overlap: 150
+
+retrieval:
+  top_k: 5
+  normalize_embeddings: true
+  metric: cosine
+
+embedding_api:
+  base_url: "https://api.siliconflow.cn/v1"
+  api_key_env: "EMBEDDING_API_KEY"
+  model_name: "Qwen/Qwen3-Embedding-8B"
+  batch_size: 32
+  timeout: 60
+  max_retries: 3
+
+llm:
+  provider: openai_compatible
+  base_url: "https://computetoken.ai/v1"
+  api_key_env: "LLM_API_KEY"
+  model_name: "gpt-5.4"
+  temperature: 0
+  timeout: 60
+  max_retries: 2
+
+categories:
+  - ASC-US
+  - ASC-H
+  - LSIL
+  - HSIL
+  - NILM
