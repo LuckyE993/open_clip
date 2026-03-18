@@ -1,8 +1,8 @@
 data:
-  csv_path: ./outputs/hicervix_5cls_train.csv
-  image_root: ../datasets/hicervix/train
-  # csv_path: ./outputs/hicervix_5cls_val.csv
-  # image_root: ../datasets/hicervix/val
+  # csv_path: outputs/25per_NILMsum/hicervix_5cls_train.csv
+  # image_root: ../datasets/hicervix/train
+  csv_path: ./outputs/25per_NILMsum/hicervix_5cls_val.csv
+  image_root: ../datasets/hicervix/val
   # csv_path: ./outputs/hicervix_5cls_test.csv
   # image_root: ../datasets/hicervix/test
   # image_mode: base64 | file_url | path
@@ -11,16 +11,32 @@ data:
   # image_url_prefix: https://your-bucket/path
 
 output:
-  jsonl_path: outputs/hicervix_5cls_train_captions.jsonl
+  jsonl_path: outputs/25per_NILMsum/hicervix_5cls_val_captions.jsonl
+
+# prompt:
+#   template: >-
+#     Task: Describe the cervical cytology image for class {class_name}.
+#     Example style: 'Small cluster of 4-5 cells. Nuclei mildly enlarged. Chromatin slightly granular. Abundant cytoplasm with distinct borders.'
+#     Your Description:
 
 prompt:
   template: >-
-    Task: Describe the cervical cytology image for class {class_name}.
-    Example style: 'Small cluster of 4-5 cells. Nuclei mildly enlarged. Chromatin slightly granular. Abundant cytoplasm with distinct borders.'
-    Your Description:
+    Task: Act as an expert cytopathologist. Generate a precise morphological description for a cervical cytology image of class {class_name}.
+    
+    Guidelines:
+    1. Focus on: Cell arrangement (isolated/clusters), Nuclear features (size, shape, membrane, chromatin), Cytoplasm (amount, color, borders), and N/C ratio (Nuclear-to-Cytoplasmic ratio).
+    2. Use professional terminology (e.g., hyperchromasia, pleomorphism, perinuclear halo).
+    3. Do NOT use filler phrases like "The image shows" or "This is". 
+    4. Ensure the description justifies the diagnosis of {class_name}.
+    
+    Style Examples:
+    - NILM: 'Superficial squamous cells with small, pyknotic nuclei and abundant, translucent cytoplasm. Regular nuclear membranes.'
+    - HSIL: 'Small, immature cells with a very high N/C ratio. Nuclei show marked hyperchromasia and irregular nuclear membranes with coarse chromatin.'
+    
+    Your Description for {class_name}:
 
 model:
-  name: Qwen/Qwen3.5-397B-A17B
+  name: Qwen2.5-VL-7B-Instruct-AWQ
 
 # Reproducibility controls
 seed: 42

@@ -7,10 +7,10 @@ Quick start:
   1) Create .env (see .env.example) with MODELSCOPE_API_KEY
   2) Edit configs/offline_caption.yaml for CSV/image paths and model params
   3) Run:
-       python scripts/offline_caption.py --config configs/offline_caption.yaml
+       python scripts/1_offline_caption.py --config configs/offline_caption.yaml
 
 Dry run (no API calls, writes JSONL with status=dry_run):
-  python scripts/offline_caption.py --config configs/offline_caption.yaml --limit 5 --dry-run
+  python scripts/1_offline_caption.py --config configs/offline_caption.yaml --limit 5 --dry-run
 
 Notes:
   - image_mode:
@@ -116,6 +116,7 @@ def build_record(
         "image_name": row["image_name"],
         "image_path": image_path,
         "class_name": row["class_name"],
+        "target_class": row.get("target_class"),
         "level_1": row.get("level_1"),
         "prompt": prompt,
         "description": description,
@@ -334,6 +335,8 @@ def run(config: Dict[str, Any], *, dry_run: bool = False, limit: Optional[int] =
                         stream=stream,
                         timeout=timeout,
                     )
+                    if not desc or not desc.strip():
+                        raise ValueError("empty response")
                     record = build_record(
                         row=row,
                         image_path=str(image_path),
